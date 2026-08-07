@@ -757,17 +757,53 @@
         }
 
         async function fetchSimilar() {
-            const prob = document.getElementById("similar-input").value.trim();
-            const resDiv = document.getElementById("similar-result");
-            if (!prob) return;
-            resDiv.classList.remove("hidden");
-            resDiv.innerHTML = "Searching problem database...";
+    const prob = document.getElementById("similar-input").value.trim();
+    const resDiv = document.getElementById("similar-result");
+    
+    if (!prob) return;
+    
+    resDiv.classList.remove("hidden");
+    resDiv.innerHTML = "Searching LeetCode database...";
+    
+    try {
+        // Convert the typed name (e.g., "Two Sum") into a LeetCode slug ("two-sum")
+        const slug = prob.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        
+        // Fetch directly from the public Alfa API instead of your backend
+        const res = await fetch(`https://alfa-leetcode-api.onrender.com/select?titleSlug=${slug}`);
+        if (!res.ok) throw new Error("API response not ok");
+        
+        const data = await res.json();
+        
+        // LeetCode returns similar questions as a stringified JSON array
+        let similarList = [];
+        if (data.similarQuestions) {
             try {
-                const res = await fetch(`${API_URL}/recommend-similar/${encodeURIComponent(prob)}`);
-                const data = await res.json();
-                resDiv.innerHTML = `<pre class="whitespace-pre-wrap text-emerald-400">${JSON.stringify(data, null, 2)}</pre>`;
-            } catch (e) { resDiv.innerHTML = "Error finding recommendations."; }
+                similarList = JSON.parse(data.similarQuestions);
+            } catch(err) {
+                console.error("Error parsing similar questions", err);
+            }
         }
+
+        // Output a clean, clickable UI list
+        if (similarList.length > 0) {
+            let html = `<div class="font-mono font-bold text-[#E8C468] mb-2">Similar to ${data.questionTitle || prob}:</div>`;
+            similarList.forEach(item => {
+                const diffColor = item.difficulty === 'Easy' ? 'text-emerald-400' : item.difficulty === 'Medium' ? 'text-amber-400' : 'text-rose-400';
+                html += `
+                    <div class="flex justify-between items-center bg-black/40 p-2.5 rounded-lg mt-1 border border-white/5">
+                        <a href="https://leetcode.com/problems/${item.titleSlug}" target="_blank" class="text-slate-200 hover:text-[#E8C468] hover:underline transition-colors text-sm">${item.title}</a>
+                        <span class="text-[10px] uppercase font-bold ${diffColor}">${item.difficulty}</span>
+                    </div>`;
+            });
+            resDiv.innerHTML = html;
+        } else {
+            resDiv.innerHTML = `<span class="text-slate-400">No similar problems found for '${prob}'. Check your spelling!</span>`;
+        }
+    } catch (e) { 
+        resDiv.innerHTML = `<span class="text-red-400">Error finding recommendations. Ensure the problem name is correct (e.g., "Two Sum").</span>`; 
+    }
+}
 
         async function sendChat() {
             const question = document.getElementById("chat-question").value.trim();
