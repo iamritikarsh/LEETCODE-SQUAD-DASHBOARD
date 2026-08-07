@@ -1,3 +1,8 @@
+import google.generativeai as genai
+import os
+# Initialize AI Model
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+model = genai.GenerativeModel('gemini-1.5-flash')
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -8,7 +13,6 @@ from google import genai
 from fastapi.middleware.cors import CORSMiddleware
 # Create the database tables
 Base.metadata.create_all(bind=engine)
-
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
@@ -27,8 +31,6 @@ def get_db():
         db.close()
 
 # Initialize the AI client with your AQ key
-client = genai.Client(api_key="GCP_API_KEY")
-
 class ChatQuery(BaseModel):
     username: str
     question: str
@@ -144,26 +146,30 @@ def recommend_similar_problems(problem_name: str):
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI - No Hardcoded Answers)
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI with Safety Guardrail)
 @app.post("/chat")
-def ai_chatbot(query: ChatQuery):
+async def chat_with_ai(chat_req: dict): # Or use your specific Pydantic model if you have one
     try:
+        username = chat_req.get("username", "User")
+        question = chat_req.get("question", "")
+        
+        # Give the AI a persona so it acts like a coding mentor
         prompt = f"""
-        You are an expert LeetCode and competitive programming coach helping a student named '{query.username}'. 
-        They are asking you this question: "{query.question}"
-        Provide a helpful, encouraging, and technically accurate answer tailored to coding, data structures, and algorithms. Keep it concise (3 sentences or less).
+        You are an expert LeetCode mentor and software engineer. 
+        A student named {username} is asking you this question: "{question}"
+        Provide a concise, helpful, and technically accurate response. 
+        If they are asking for a solution, give them hints or the optimal approach (like time/space complexity) rather than just giving away the exact code immediately. 
+        Use line breaks and bold text (** **) to format your response clearly.
         """
         
-        ai_response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-        answer = ai_response.text
+        # Call the real AI
+        response = model.generate_content(prompt)
         
-    except Exception:
-        # Dynamic fallback response if Google's free-tier quota is locked
-        answer = f"To solve '{query.question}', break down the core constraints first. Use an optimal data structure like a Hash Map or Two Pointers to reduce your time complexity to O(N), then carefully trace your edge cases."
-
-    return {
-        "user": query.username,
-        "question": query.question,
-        "ai_response": answer
-    }
+        return {
+            "user": username, 
+            "question": question, 
+            "ai_response": response.text
+        }
+    except Exception as e:
+        return {"ai_response": f"AI Mentor is currently resting. Error: {str(e)}"}
 
 
 # 6. View All Search History
