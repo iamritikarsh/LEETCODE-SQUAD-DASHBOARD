@@ -422,43 +422,44 @@
         let f3 = localStorage.getItem("lc_f3") || "";
 
         window.onload = function() {
-            initBackground();
-            if (myUser && f1 && f2 && f3) {
-                document.getElementById("setup-section").classList.add("hidden");
-                document.getElementById("dashboard-content").classList.remove("hidden");
-                document.getElementById("logged-in-user-tag").innerText = `Active Account: ${myUser}`;
-                document.getElementById("comp-user1").value = myUser;
-                document.getElementById("consistency-user").innerText = myUser;
+    initBackground();
+    // CHANGED: Now only requires myUser to be filled to enter dashboard
+    if (myUser) {
+        document.getElementById("setup-section").classList.add("hidden");
+        document.getElementById("dashboard-content").classList.remove("hidden");
+        document.getElementById("logged-in-user-tag").innerText = `Active Account: ${myUser}`;
+        document.getElementById("comp-user1").value = myUser;
+        document.getElementById("consistency-user").innerText = myUser;
 
-                // Load all automated widgets & graph instantly
-                fetchLeaderboard();
-                loadMyHeroStats();
-                renderActivityChart();
-                loadMyProfile();
-                loadMyPrediction();
-                loadMyConsistency();
-                loadMyAchievements();
-            }
-        };
+        fetchLeaderboard();
+        loadMyHeroStats();
+        renderActivityChart();
+        loadMyProfile();
+        loadMyPrediction();
+        loadMyConsistency();
+        loadMyAchievements();
+    }
+};
 
         function saveSquad() {
-            myUser = document.getElementById("my-username").value.trim();
-            f1 = document.getElementById("friend1-username").value.trim();
-            f2 = document.getElementById("friend2-username").value.trim();
-            f3 = document.getElementById("friend3-username").value.trim();
+    myUser = document.getElementById("my-username").value.trim();
+    f1 = document.getElementById("friend1-username").value.trim();
+    f2 = document.getElementById("friend2-username").value.trim();
+    f3 = document.getElementById("friend3-username").value.trim();
 
-            if (!myUser || !f1 || !f2 || !f3) {
-                alert("Please fill in your username and all 3 rival usernames!");
-                return;
-            }
+    // CHANGED: Now only checks if the main username is empty
+    if (!myUser) {
+        alert("Your LeetCode username is required to launch the ladder!");
+        return;
+    }
 
-            localStorage.setItem("lc_my_user", myUser);
-            localStorage.setItem("lc_f1", f1);
-            localStorage.setItem("lc_f2", f2);
-            localStorage.setItem("lc_f3", f3);
+    localStorage.setItem("lc_my_user", myUser);
+    localStorage.setItem("lc_f1", f1);
+    localStorage.setItem("lc_f2", f2);
+    localStorage.setItem("lc_f3", f3);
 
-            location.reload();
-        }
+    location.reload();
+}
 
         function resetSquad() {
             localStorage.clear();
@@ -572,35 +573,54 @@
         }
 
         async function fetchLeaderboard() {
-            const container = document.getElementById("leaderboard-container");
-            container.innerHTML = `<p class="text-slate-500 py-6 text-center animate-pulse">Syncing live squad rankings...</p>`;
-            try {
-                const response = await fetch(`${API_URL}/friends-leaderboard/${myUser}/${f1}/${f2}/${f3}`);
-                const data = await response.json();
-                let html = "";
-                data.group_leaderboard.forEach((user, idx) => {
-                    const isMe = user.username.toLowerCase() === myUser.toLowerCase() ? "border-l-2 border-[#E8C468] bg-[#C9A227]/5 px-3 -mx-3 rounded-r-2xl" : "";
-                    html += `
-                        <div class="py-4 flex items-center justify-between ${isMe} reveal" style="animation-delay:${idx * 0.06}s">
-                            <div class="flex items-center gap-4">
-                                <div class="hex ${hexClassForRank(user.rank)}"><span class="font-mono text-sm">${user.rank}</span></div>
-                                <div>
-                                    <h3 class="font-display font-bold text-base text-white">${user.username} ${user.username.toLowerCase() === myUser.toLowerCase() ? '<span class="text-[10px] bg-[#E8C468] text-[#171205] px-2 py-0.5 rounded-full font-extrabold ml-2 font-mono">YOU</span>' : ''}</h3>
-                                    <p class="text-xs text-slate-400 font-mono">Solved: <span class="text-slate-200 font-semibold">${user.total_solved}</span> · E:${user.variety_breakdown.easy} M:${user.variety_breakdown.medium} H:${user.variety_breakdown.hard}</p>
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-lg font-display font-extrabold text-[#E8C468]">${user.xp} XP</span>
-                                <p class="text-[10px] text-slate-500 uppercase tracking-widest font-mono font-bold">Rank #${user.rank}</p>
-                            </div>
-                        </div>
-                    `;
-                });
-                container.innerHTML = html;
-            } catch (error) {
-                container.innerHTML = `<p class="text-red-400 py-6 text-center">Failed to connect to backend server.</p>`;
+    const container = document.getElementById("leaderboard-container");
+    container.innerHTML = `<p class="text-slate-500 py-6 text-center animate-pulse">Syncing live squad rankings...</p>`;
+    try {
+        // SAFE FALLBACK: Pass 'myUser' for empty slots so the backend doesn't crash on invalid/missing usernames!
+        const safeF1 = f1 ? f1 : myUser;
+        const safeF2 = f2 ? f2 : myUser;
+        const safeF3 = f3 ? f3 : myUser;
+
+        const response = await fetch(`${API_URL}/friends-leaderboard/${myUser}/${safeF1}/${safeF2}/${safeF3}`);
+        const data = await response.json();
+        let html = "";
+        
+        // FILTER: Remove the duplicate entries we created as fallbacks
+        const uniqueUsers = [];
+        const seenNames = new Set();
+        data.group_leaderboard.forEach(u => {
+            const lowerName = u.username.toLowerCase();
+            if (!seenNames.has(lowerName)) {
+                seenNames.add(lowerName);
+                uniqueUsers.push(u);
             }
-        }
+        });
+
+        // RENDER HTML based on unique users (1 to 4 total)
+        uniqueUsers.forEach((user, idx) => {
+            const actualRank = idx + 1; // Recalculate rank based on unique players
+            const isMe = user.username.toLowerCase() === myUser.toLowerCase() ? "border-l-2 border-[#E8C468] bg-[#C9A227]/5 px-3 -mx-3 rounded-r-2xl" : "";
+            html += `
+                <div class="py-4 flex items-center justify-between ${isMe} reveal" style="animation-delay:${idx * 0.06}s">
+                    <div class="flex items-center gap-4">
+                        <div class="hex ${hexClassForRank(actualRank)}"><span class="font-mono text-sm">${actualRank}</span></div>
+                        <div>
+                            <h3 class="font-display font-bold text-base text-white">${user.username} ${user.username.toLowerCase() === myUser.toLowerCase() ? '<span class="text-[10px] bg-[#E8C468] text-[#171205] px-2 py-0.5 rounded-full font-extrabold ml-2 font-mono">YOU</span>' : ''}</h3>
+                            <p class="text-xs text-slate-400 font-mono">Solved: <span class="text-slate-200 font-semibold">${user.total_solved}</span> · E:${user.variety_breakdown.easy} M:${user.variety_breakdown.medium} H:${user.variety_breakdown.hard}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-lg font-display font-extrabold text-[#E8C468]">${user.xp} XP</span>
+                        <p class="text-[10px] text-slate-500 uppercase tracking-widest font-mono font-bold">Rank #${actualRank}</p>
+                    </div>
+                </div>
+            `;
+        });
+        container.innerHTML = html;
+    } catch (error) {
+        container.innerHTML = `<p class="text-red-400 py-6 text-center">Failed to connect to backend server.</p>`;
+    }
+}
 
         async function loadMyProfile() {
             const resDiv = document.getElementById("profile-result");
