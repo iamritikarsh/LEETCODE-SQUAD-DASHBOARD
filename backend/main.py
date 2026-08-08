@@ -1,3 +1,6 @@
+from google import genai
+import os
+client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
 import google.generativeai as genai
 import os
 # Initialize AI Model
@@ -146,26 +149,27 @@ def recommend_similar_problems(problem_name: str):
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI - No Hardcoded Answers)
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI with Safety Guardrail)
 @app.post("/chat")
-async def chat_with_ai(chat_req: dict): # Or use your specific Pydantic model if you have one
+async def chat_with_ai(chat_req: dict): 
     try:
         username = chat_req.get("username", "User")
         question = chat_req.get("question", "")
-        
-        # Give the AI a persona so it acts like a coding mentor
+
         prompt = f"""
         You are an expert LeetCode mentor and software engineer. 
         A student named {username} is asking you this question: "{question}"
-        Provide a concise, helpful, and technically accurate response. 
-        If they are asking for a solution, give them hints or the optimal approach (like time/space complexity) rather than just giving away the exact code immediately. 
+        Provide a concise, helpful, and technically accurate response.
         Use line breaks and bold text (** **) to format your response clearly.
         """
-        
-        # Call the real AI
-        response = model.generate_content(prompt)
-        
+
+        # Use the exact model version that bypassed the quota limit
+        response = client.models.generate_content(
+            model='gemini-3.6-flash',
+            contents=prompt
+        )
+
         return {
-            "user": username, 
-            "question": question, 
+            "user": username,
+            "question": question,
             "ai_response": response.text
         }
     except Exception as e:
