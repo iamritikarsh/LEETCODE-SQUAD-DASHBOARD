@@ -208,83 +208,45 @@ import difflib
 
 @app.get("/recommend/{query_str}")
 def recommend_problems(query_str: str):
-    url = "https://leetcode.com/graphql"
-    headers = {
-        "Content-Type": "application/json", 
-        "User-Agent": "Mozilla/5.0",
-        "Referer": "https://leetcode.com/"
-    }
-    
-    list_query = """
-    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
-      problemsetQuestionList: questionList(
-        categorySlug: $categorySlug
-        limit: $limit
-        skip: $skip
-        filters: $filters
-      ) {
-        questions: data {
-          title
-          difficulty
-          topicTags { name }
-        }
-      }
-    }
-    """
-    payload = {
-        "query": list_query,
-        "variables": {"categorySlug": "", "limit": 100, "skip": 0, "filters": {}}
-    }
-    
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-        data = response.json()
-        questions = data.get("data", {}).get("problemsetQuestionList", {}).get("questions", [])
+        # Ask Gemini to handle typo correction, identify the real problem, and provide recommendations directly
+        prompt = f"""
+        An engineering student typed the LeetCode problem name or search query: '{query_str}'. 
+        1. Identify the most likely correct LeetCode problem name.
+        2. Provide exactly 3 short, actionable practice recommendations or similar problem types separated by commas.
+        Format your response strictly as:
+        Problem: [Corrected Problem Name]
+        Recommendations: [Rec 1], [Rec 2], [Rec 3]
+        """
         
-        if not questions:
-            return {"error": "Could not fetch problem database from LeetCode."}
-            
-        title_map = {q["title"].lower(): q for q in questions}
-        available_titles = list(title_map.keys())
+        ai_res = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        text = ai_res.text
         
-        # Fuzzy match for typos/wrong spellings
-        best_matches = difflib.get_close_matches(query_str.lower(), available_titles, n=1, cutoff=0.2)
+        # Parse the AI response safely
+        corrected_title = query_str.title()
+        recs = ["Focus on core data structures", "Practice time complexity optimization", "Review pattern recognition"]
         
-        if not best_matches:
-            return {"error": f"No matching problem found for '{query_str}'."}
-            
-        matched_q = title_map[best_matches[0]]
-        q_title = matched_q["title"]
-        q_tags = ", ".join([t["name"] for t in matched_q.get("topicTags", [])]) or "Algorithms"
-        
-        # Generate recommendations using Gemini
-        recommendations = [
-            f"Core Intuition: Master the underlying patterns of {q_tags}.",
-            f"Practice similar problems focusing on time and space complexity optimization.",
-            f"Review optimal solutions for '{q_title}' to solidify your approach."
-        ]
-        
-        try:
-            prompt = f"""
-            Act as an expert data structures mentor. The user searched for LeetCode problem '{q_title}' (Topics: {q_tags}).
-            Provide exactly 3 short, actionable practice recommendations separated by commas.
-            """
-            ai_res = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-            text = ai_res.text.replace("\n", " ")
-            parts = [p.strip() for p in text.split(",") if len(p.strip()) > 5]
-            if len(parts) >= 3:
-                recommendations = parts[:3]
-        except:
-            pass
+        for line in text.split("\n"):
+            if "Problem:" in line:
+                corrected_title = line.replace("Problem:", "").strip()
+            elif "Recommendations:" in line:
+                rec_part = line.replace("Recommendations:", "").strip()
+                recs = [r.strip() for r in rec_part.split(",") if len(r.strip()) > 3][:3]
 
-        # Returns the exact keys your frontend JavaScript looks for
         return {
-            "user_solved": q_title,
-            "ai_recommendations": recommendations
+            "user_solved": corrected_title,
+            "ai_recommendations": recs
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "user_solved": query_str.title(),
+            "ai_recommendations": [
+                "Master the underlying algorithmic patterns",
+                "Practice optimal space-time complexity",
+                "Solve variations of this problem type"
+            ]
+        }
 
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI - No Hardcoded Answers)
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI with Safety Guardrail)
