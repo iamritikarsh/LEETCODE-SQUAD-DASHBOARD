@@ -938,30 +938,27 @@
                 const topics = ['Arrays', 'Graphs', 'DP'];
 
                 topics.forEach((topic, idx) => {
-                    const rowHtml = `
-                        <div class="grid grid-cols-3 gap-3 items-center bg-black/30 p-2.5 rounded-xl border border-white/5 flash-in" style="animation-delay:${idx * 0.08}s">
-                            <span class="text-xs font-semibold text-slate-300">${topic}</span>
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[9px] text-slate-500 font-mono">${comp.user1[topic]}</span>
-                                <progress class="bar-gold" value="${parseBarLength(comp.user1[topic])}" max="10"></progress>
-                            </div>
-                            <div class="flex flex-col gap-1">
-                                <span class="text-[9px] text-slate-500 font-mono">${comp.user2[topic]}</span>
-                                <progress class="bar-gold" value="${parseBarLength(comp.user2[topic])}" max="10"></progress>
-                            </div>
-                        </div>
-                    `;
-                    rowsDiv.insertAdjacentHTML('beforeend', rowHtml);
-                });
+            const rowHtml = `
+                <div class="grid grid-cols-3 gap-3 items-center bg-black/30 p-2.5 rounded-xl border border-white/5">
+                    <span class="text-xs font-semibold text-slate-300">${topic}</span>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[9px] text-slate-500 font-mono text-right">${comp.user1[topic]}%</span>
+                        <progress class="bar-gold" value="${comp.user1[topic]}" max="100"></progress>
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[9px] text-slate-500 font-mono text-right">${comp.user2[topic]}%</span>
+                        <progress class="bar-gold" value="${comp.user2[topic]}" max="100"></progress>
+                    </div>
+                </div>
+            `;
+            rowsDiv.insertAdjacentHTML('beforeend', rowHtml);
+        });
             } catch (e) {
                 rowsDiv.innerHTML = `<p class="text-red-400 text-xs text-center py-2 flash-in">Error connecting to comparison endpoint.</p>`;
             }
         }
 
-        function parseBarLength(barString) {
-            if (!barString) return 0;
-            return (barString.match(/█/g) || []).length;
-        }
+        
 
         async function fetchSimilar() {
     const prob = document.getElementById("similar-input").value.trim();
