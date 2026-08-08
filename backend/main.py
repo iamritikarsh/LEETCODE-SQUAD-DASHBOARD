@@ -83,8 +83,8 @@ async def get_solved_stats(username: str):
 # 1. Profile Analyzer & Dynamic AI Performance Report
 @app.get("/analyze-profile/{username}")
 def analyze_leetcode_profile(username: str):
+    # 1. Fetch LeetCode Data (Safely isolated)
     try:
-        # 1. Fetch real stats directly from LeetCode GraphQL
         url = "https://leetcode.com/graphql"
         query = """
         query userPublicProfile($username: String!) {
@@ -99,36 +99,50 @@ def analyze_leetcode_profile(username: str):
         payload = {"query": query, "variables": {"username": username}}
         headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
         
-        response = requests.post(url, json=payload, headers=headers)
-        data = response.json()["data"]["matchedUser"]
+        response = requests.post(url, json=payload, headers=headers).json()
+        data = response.get("data", {}).get("matchedUser", {})
         
-        profile = data["profile"]
-        stats = data["submitStats"]["acSubmissionNum"]
+        if not data:
+            return {"ranking": "N/A", "reputation": 0, "totalSolved": 0, "ai_coach_report": "User not found."}
+
+        profile = data.get("profile", {})
+        stats = data.get("submitStats", {}).get("acSubmissionNum", [])
         
         total = next((item["count"] for item in stats if item["difficulty"] == "All"), 0)
         easy = next((item["count"] for item in stats if item["difficulty"] == "Easy"), 0)
         medium = next((item["count"] for item in stats if item["difficulty"] == "Medium"), 0)
         hard = next((item["count"] for item in stats if item["difficulty"] == "Hard"), 0)
         
-        # 2. Keep your exact Gemini AI prompt intact
-        prompt = f"""
-Act as an expert coding mentor. The user '{username}' has solved {total} total problems ({easy} Easy, {medium} Medium, {hard} Hard).
-Provide a short 2-sentence performance report and a 3-item daily practice recommendation for C++.
-"""
-        ai_response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-        
-        # 3. Return both the stats for the UI and the AI report
-        return {
-            "ranking": profile.get("ranking", "N/A"),
-            "reputation": profile.get("reputation", 0),
-            "totalSolved": total,
-            "easy": easy,
-            "medium": medium,
-            "hard": hard,
-            "ai_coach_report": ai_response.text
-        }
+        ranking = profile.get("ranking", "N/A")
+        reputation = profile.get("reputation", 0)
+
     except Exception as e:
-        return {"error": str(e), "ranking": "N/A", "reputation": 0, "totalSolved": 0}
+        return {"error": str(e), "ranking": "N/A", "reputation": 0, "totalSolved": 0, "ai_coach_report": "Error fetching LeetCode stats."}
+
+    # 2. Fetch AI Report (In its own separate try/except block!)
+    ai_report = "AI Coach is analyzing your performance..."
+    try:
+        prompt = f"""
+        Act as an expert coding mentor. The user '{username}' has solved {total} total problems ({easy} Easy, {medium} Medium, {hard} Hard).
+        Provide a short 2-sentence performance report and a 3-item daily practice recommendation for C++.
+        """
+        ai_response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        ai_report = ai_response.text
+    except Exception as e:
+        print(f"AI Generation Error: {e}") # Fails silently on the server without breaking the UI
+        ai_report = "AI Mentor is currently taking a break. Keep grinding!"
+
+    # 3. Return everything to the frontend
+    return {
+        "ranking": ranking,
+        "reputation": reputation,
+        "totalSolved": total,      
+        "total_solved": total,     
+        "easy": easy,
+        "medium": medium,
+        "hard": hard,
+        "ai_coach_report": ai_report
+    }
 
 # 2. Predict Contest Rating
 @app.get("/predict-rating/{username}")
