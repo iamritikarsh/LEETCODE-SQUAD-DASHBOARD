@@ -215,7 +215,6 @@ def recommend_problems(query_str: str):
         "Referer": "https://leetcode.com/"
     }
     
-    # 1. Fetch a broad list of problems from LeetCode to build our search dictionary
     list_query = """
     query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
       problemsetQuestionList: questionList(
@@ -226,7 +225,6 @@ def recommend_problems(query_str: str):
       ) {
         questions: data {
           title
-          titleSlug
           difficulty
           topicTags { name }
         }
@@ -246,46 +244,47 @@ def recommend_problems(query_str: str):
         if not questions:
             return {"error": "Could not fetch problem database from LeetCode."}
             
-        # 2. Extract titles and map them back to their full question objects
         title_map = {q["title"].lower(): q for q in questions}
         available_titles = list(title_map.keys())
         
-        # 3. Fuzzy match the user query to handle typos/wrong spellings gracefully
-        best_matches = difflib.get_close_matches(query_str.lower(), available_titles, n=1, cutoff=0.3)
+        # Fuzzy match for typos/wrong spellings
+        best_matches = difflib.get_close_matches(query_str.lower(), available_titles, n=1, cutoff=0.2)
         
         if not best_matches:
-            return {"error": f"No matching problem found for '{query_str}'. Try another name."}
+            return {"error": f"No matching problem found for '{query_str}'."}
             
         matched_q = title_map[best_matches[0]]
         q_title = matched_q["title"]
-        q_diff = matched_q["difficulty"]
         q_tags = ", ".join([t["name"] for t in matched_q.get("topicTags", [])]) or "Algorithms"
         
-        # 4. Generate AI recommendations using Gemini
-        ai_recommendation = f"Practice similar problems focusing on {q_tags}."
+        # Generate recommendations using Gemini
+        recommendations = [
+            f"Core Intuition: Master the underlying patterns of {q_tags}.",
+            f"Practice similar problems focusing on time and space complexity optimization.",
+            f"Review optimal solutions for '{q_title}' to solidify your approach."
+        ]
+        
         try:
             prompt = f"""
-            Act as an expert data structures mentor. The user searched for the LeetCode problem '{q_title}' (Difficulty: {q_diff}, Topics: {q_tags}).
-            Provide:
-            1. A 1-sentence core intuition for solving it.
-            2. 2 similar LeetCode problems they should practice next.
-            Keep it concise and punchy.
+            Act as an expert data structures mentor. The user searched for LeetCode problem '{q_title}' (Topics: {q_tags}).
+            Provide exactly 3 short, actionable practice recommendations separated by commas.
             """
             ai_res = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-            ai_recommendation = ai_res.text
+            text = ai_res.text.replace("\n", " ")
+            parts = [p.strip() for p in text.split(",") if len(p.strip()) > 5]
+            if len(parts) >= 3:
+                recommendations = parts[:3]
         except:
-            ai_recommendation = f"Mastering {q_title} requires strong understanding of {q_tags}. Focus on time complexity optimization."
+            pass
 
+        # Returns the exact keys your frontend JavaScript looks for
         return {
-            "query": query_str,
-            "matched_title": q_title,
-            "difficulty": q_diff,
-            "topics": q_tags,
-            "recommendation": ai_recommendation
+            "user_solved": q_title,
+            "ai_recommendations": recommendations
         }
 
     except Exception as e:
-        return {"error": f"Error processing recommendation: {str(e)}"}
+        return {"error": str(e)}
 
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI - No Hardcoded Answers)
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI with Safety Guardrail)
