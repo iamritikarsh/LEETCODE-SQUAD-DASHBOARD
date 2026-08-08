@@ -319,25 +319,43 @@ def compare_with_friend(user1: str, user2: str):
 
 # 10. Friends Group Leaderboard (Compares 4 specific friends with solved endpoint)
 @app.get("/friends-leaderboard/{user1}/{user2}/{user3}/{user4}")
-def get_friends_leaderboard(user1: str, user2: str, user3: str, user4: str):
+async def get_friends_leaderboard(user1: str, user2: str, user3: str, user4: str):
     usernames = [user1, user2, user3, user4]
+    url = "https://leetcode.com/graphql"
+    query = """
+    query userPublicProfile($username: String!) {
+      matchedUser(username: $username) {
+        submitStats: submitStatsGlobal {
+          acSubmissionNum {
+            difficulty
+            count
+          }
+        }
+      }
+    }
+    """
+    headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
     friend_data = []
 
     for name in usernames:
-        url = f"https://alfa-leetcode-api.vercel.app/{name}/solved"
+        if not name or name.lower() in ["none", "null", "undefined", ""]:
+            continue
+
         easy, medium, hard, total, xp = 0, 0, 0, 0, 0
 
         try:
-            response = requests.get(url, timeout=8)
+            response = requests.post(url, json={"query": query, "variables": {"username": name}}, headers=headers, timeout=8)
             if response.status_code == 200:
                 data = response.json()
-                easy = data.get("easySolved", 0)
-                medium = data.get("mediumSolved", 0)
-                hard = data.get("hardSolved", 0)
-                total = data.get("solvedProblem", easy + medium + hard)
-                xp = (easy * 1) + (medium * 3) + (hard * 5)
+                if "data" in data and data["data"]["matchedUser"]:
+                    stats = data["data"]["matchedUser"]["submitStats"]["acSubmissionNum"]
+                    easy = next((item["count"] for item in stats if item["difficulty"] == "Easy"), 0)
+                    medium = next((item["count"] for item in stats if item["difficulty"] == "Medium"), 0)
+                    hard = next((item["count"] for item in stats if item["difficulty"] == "Hard"), 0)
+                    total = next((item["count"] for item in stats if item["difficulty"] == "All"), 0)
+                    xp = (easy * 1) + (medium * 3) + (hard * 5)
         except:
-            pass # fallback to 0 if server is spinning up
+            pass  # Fallback to 0 if request fails
 
         friend_data.append({
             "username": name,
@@ -358,6 +376,4 @@ def get_friends_leaderboard(user1: str, user2: str, user3: str, user4: str):
             "variety_breakdown": friend["breakdown"]
         })
 
-    return {
-        "group_leaderboard": leaderboard_result
-    }
+    return {"group_leaderboard": leaderboard_result}
