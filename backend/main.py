@@ -40,9 +40,44 @@ def read_root():
 @app.get("/solved/{username}")
 async def get_solved_stats(username: str):
     try:
-        url = f"https://alfa-leetcode-api.onrender.com/{username}/solved"
-        response = requests.get(url)
-        return response.json()
+        url = "https://leetcode.com/graphql"
+        query = """
+        query getUserProfile($username: String!) {
+          matchedUser(username: $username) {
+            submitStats: submitStatsGlobal {
+              acSubmissionNum {
+                difficulty
+                count
+              }
+            }
+          }
+        }
+        """
+        payload = {
+            "query": query,
+            "variables": {"username": username}
+        }
+        headers = {
+            "Content-Type": "application/json",
+            "User-Agent": "Mozilla/5.0"
+        }
+        response = requests.post(url, json=payload, headers=headers)
+        
+        data = response.json()["data"]["matchedUser"]["submitStats"]["acSubmissionNum"]
+        
+        stats = {"solvedProblem": 0, "easySolved": 0, "mediumSolved": 0, "hardSolved": 0}
+        
+        for item in data:
+            if item["difficulty"] == "All":
+                stats["solvedProblem"] = item["count"]
+            elif item["difficulty"] == "Easy":
+                stats["easySolved"] = item["count"]
+            elif item["difficulty"] == "Medium":
+                stats["mediumSolved"] = item["count"]
+            elif item["difficulty"] == "Hard":
+                stats["hardSolved"] = item["count"]
+                
+        return stats
     except Exception as e:
         return {"solvedProblem": 0, "easySolved": 0, "mediumSolved": 0, "hardSolved": 0}
 # 1. Profile Analyzer & Dynamic AI Performance Report
