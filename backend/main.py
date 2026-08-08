@@ -119,16 +119,16 @@ Provide a short 2-sentence performance report and a 3-item daily practice recomm
         
         # 3. Return both the stats for the UI and the AI report
         return {
-            "ranking": profile["ranking"],
-            "reputation": profile["reputation"],
-            "total_solved": total,
+            "ranking": profile.get("ranking", "N/A"),
+            "reputation": profile.get("reputation", 0),
+            "totalSolved": total,
             "easy": easy,
             "medium": medium,
             "hard": hard,
             "ai_coach_report": ai_response.text
         }
     except Exception as e:
-        return {"error": str(e), "ranking": "N/A", "reputation": 0, "total_solved": 0}
+        return {"error": str(e), "ranking": "N/A", "reputation": 0, "totalSolved": 0}
 
 # 2. Predict Contest Rating
 @app.get("/predict-rating/{username}")
@@ -158,36 +158,36 @@ def predict_contest_rating(username: str):
         "badge_unlocked": "Contest Competitor 🏆"
     }
 
-# 3. Achievement System
-@app.get("/achievements/{username}")
-def unlock_achievements(username: str):
-    url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
-    response = requests.get(url)
+# # 3. Achievement System
+# @app.get("/achievements/{username}")
+# def unlock_achievements(username: str):
+#     url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
+#     response = requests.get(url)
     
-    if response.status_code != 200:
-        return {"error": "Could not fetch data for achievements."}
+#     if response.status_code != 200:
+#         return {"error": "Could not fetch data for achievements."}
     
-    data = response.json()
-    easy = data.get("easySolved", 0)
-    medium = data.get("mediumSolved", 0)
-    hard = data.get("hardSolved", 0)
+#     data = response.json()
+#     easy = data.get("easySolved", 0)
+#     medium = data.get("mediumSolved", 0)
+#     hard = data.get("hardSolved", 0)
     
-    unlocked_badges = []
+#     unlocked_badges = []
     
-    if easy >= 100:
-        unlocked_badges.append("100 Easy 🥉")
-    if medium >= 50:
-        unlocked_badges.append("Medium Master 🥈")
-    if hard >= 50:
-        unlocked_badges.append("50 Hard 🥇")
+#     if easy >= 100:
+#         unlocked_badges.append("100 Easy 🥉")
+#     if medium >= 50:
+#         unlocked_badges.append("Medium Master 🥈")
+#     if hard >= 50:
+#         unlocked_badges.append("50 Hard 🥇")
         
-    unlocked_badges.extend(["DP Beginner 🌱", "Tree Expert 🌲", "30 Day Streak 🔥"])
+#     unlocked_badges.extend(["DP Beginner 🌱", "Tree Expert 🌲", "30 Day Streak 🔥"])
     
-    return {
-        "user": username,
-        "total_badges": len(unlocked_badges),
-        "badges": unlocked_badges
-    }
+#     return {
+#         "user": username,
+#         "total_badges": len(unlocked_badges),
+#         "badges": unlocked_badges
+#     }
 
 # 4. Similar Problem Finder (Fully Dynamic AI)
 @app.get("/recommend-similar/{problem_name}")
@@ -250,45 +250,37 @@ def clear_search_history(db: Session = Depends(get_db)):
 
 
 # 8. Consistency Score Calculator
+# --- CONSISTENCY METRICS ---
 @app.get("/consistency/{username}")
-def calculate_consistency(username: str):
-    solved_url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
-    contest_url = f"https://alfa-leetcode-api.vercel.app/{username}/contest"
-    
-    solved_res = requests.get(solved_url)
-    contest_res = requests.get(contest_url)
-    
-    if solved_res.status_code != 200:
-        return {"error": "Could not fetch user data for consistency score."}
+async def get_consistency(username: str):
+    try:
+        url = "https://leetcode.com/graphql"
+        query = """query ($username: String!) { matchedUser(username: $username) { userCalendar { streak } } }"""
+        response = requests.post(url, json={"query": query, "variables": {"username": username}}).json()
         
-    solved_data = solved_res.json()
-    total_solved = solved_data.get("solvedProblem", 0)
-    
-    contests_attended = 0
-    if contest_res.status_code == 200:
-        contest_data = contest_res.json()
-        contests_attended = contest_data.get("attendedContestsCount", 0)
-    
-    base_score = min(int((total_solved / 150) * 50), 50)
-    contest_score = min(contests_attended * 10, 40)
-    bonus = 10
-    
-    consistency_score = min(base_score + contest_score + bonus, 100)
-    
-    filled_blocks = int(consistency_score / 10)
-    empty_blocks = 10 - filled_blocks
-    progress_bar = ("█" * filled_blocks) + ("░" * empty_blocks)
-    
-    return {
-        "user": username,
-        "consistency_score": f"{consistency_score}%",
-        "progress_bar": progress_bar,
-        "metrics_based_on": {
-            "daily_solving": f"{total_solved} problems solved",
-            "missed_days": "Low (Calculated from streak)",
-            "contest_participation": f"{contests_attended} contests attended"
-        }
-    }
+        streak = response["data"]["matchedUser"]["userCalendar"]["streak"]
+        score = min((streak / 30) * 100, 100) # Calculates a score based on a 30-day goal
+        return {"consistency_score": f"{int(score)}%"}
+    except:
+        return {"consistency_score": "0%"}
+
+# --- EARNED BADGES ---
+@app.get("/achievements/{username}")
+async def get_achievements(username: str):
+    try:
+        url = "https://leetcode.com/graphql"
+        query = """query ($username: String!) { matchedUser(username: $username) { badges { name icon } } }"""
+        response = requests.post(url, json={"query": query, "variables": {"username": username}}).json()
+        
+        badges = response["data"]["matchedUser"]["badges"]
+        # Format image URLs correctly for the frontend
+        for b in badges:
+            if not b["icon"].startswith("http"):
+                b["icon"] = "https://leetcode.com" + b["icon"]
+                
+        return {"badges": badges}
+    except:
+        return {"badges": []}
 
 
 # 9. Compare with Friends
