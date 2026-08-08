@@ -1,7 +1,7 @@
 from google import genai
 import os
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-import google.generativeai as genai
+from google import genai
 import os
 # Initialize AI Model
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
