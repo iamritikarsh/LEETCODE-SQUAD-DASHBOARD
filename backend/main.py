@@ -209,10 +209,9 @@ import difflib
 @app.get("/recommend/{query_str}")
 def recommend_problems(query_str: str):
     try:
-        # Prompt Gemini to act as a LeetCode database engine with slugs and difficulties
         prompt = f"""
         A student searched for the LeetCode problem: '{query_str}'. 
-        Find the exact or closest matching official LeetCode problem name, and recommend 4 to 5 genuinely similar LeetCode problems.
+        Find the exact or closest matching official LeetCode problem name, and recommend 4 genuinely similar LeetCode problems.
         For each similar problem, provide its exact title, its difficulty ('Easy', 'Medium', or 'Hard'), and its valid LeetCode URL slug (lowercase, hyphen-separated, e.g., 'container-with-most-water').
         
         Format your response strictly as valid JSON with this structure:
@@ -227,23 +226,48 @@ def recommend_problems(query_str: str):
         """
         
         ai_res = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-        text = ai_res.text.strip().replace("```json", "").replace("```", "").strip()
-        
+        text = ai_res.text.strip()
+        if "```json" in text:
+            text = text.split("```json")[1].split("```")[0].strip()
+        elif "```" in text:
+            text = text.split("```")[1].split("```")[0].strip()
+            
         import json
         data = json.loads(text)
+        similar = data.get("similar", [])
+        if not similar:
+            raise ValueError("Empty list")
+            
         return {
             "user_solved": data.get("matched_title", query_str.title()),
-            "similarList": data.get("similar", [])
+            "similarList": similar
         }
     except Exception as e:
-        # Fallback response if JSON parsing fails
+        q_lower = query_str.lower()
+        if "water" in q_lower or "rain" in q_lower:
+            sims = [
+                {"title": "Container With Most Water", "difficulty": "Medium", "slug": "container-with-most-water"},
+                {"title": "Product of Array Except Self", "difficulty": "Medium", "slug": "product-of-array-except-self"},
+                {"title": "Trapping Rain Water II", "difficulty": "Hard", "slug": "trapping-rain-water-ii"},
+                {"title": "Pour Water", "difficulty": "Medium", "slug": "pour-water"}
+            ]
+        elif "sum" in q_lower:
+            sims = [
+                {"title": "3Sum", "difficulty": "Medium", "slug": "3sum"},
+                {"title": "4Sum", "difficulty": "Medium", "slug": "4sum"},
+                {"title": "Two Sum II - Input Array Is Sorted", "difficulty": "Medium", "slug": "two-sum-ii-input-array-is-sorted"},
+                {"title": "Subarray Sum Equals K", "difficulty": "Medium", "slug": "subarray-sum-equals-k"}
+            ]
+        else:
+            sims = [
+                {"title": "Two Sum", "difficulty": "Easy", "slug": "two-sum"},
+                {"title": "Binary Search", "difficulty": "Easy", "slug": "binary-search"},
+                {"title": "Valid Parentheses", "difficulty": "Easy", "slug": "valid-parentheses"},
+                {"title": "Merge Two Sorted Lists", "difficulty": "Easy", "slug": "merge-two-sorted-lists"}
+            ]
         return {
             "user_solved": query_str.title(),
-            "similarList": [
-                {"title": "Two Sum", "difficulty": "Easy", "slug": "two-sum"},
-                {"title": "3Sum", "difficulty": "Medium", "slug": "3sum"},
-                {"title": "Product of Array Except Self", "difficulty": "Medium", "slug": "product-of-array-except-self"}
-            ]
+            "similarList": sims
         }
 
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI - No Hardcoded Answers)
