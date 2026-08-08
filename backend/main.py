@@ -299,38 +299,64 @@ async def get_achievements(username: str):
 
 # 9. Compare with Friends
 @app.get("/compare/{user1}/{user2}")
-@app.get("/compare/{user1}/{user2}")
 def compare_with_friend(user1: str, user2: str):
-    def get_user_data(username):
-        url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
-        try:
-            response = requests.get(url, timeout=8)
-            return response.json() if response.status_code == 200 else {}
-        except:
-            return {}
+    # Calculates a clean percentage (0 to 100) instead of messy ASCII text
+    def get_percentage(solved, total_max=150): 
+        return min(int((solved / total_max) * 100), 100)
 
-    data1 = get_user_data(user1)
-    data2 = get_user_data(user2)
+    # Use a single batched GraphQL query for both users
+    url = "https://leetcode.com/graphql"
+    query = f"""
+    query getCompareStats {{
+        u1: matchedUser(username: "{user1}") {{
+            submitStats: submitStatsGlobal {{ acSubmissionNum {{ difficulty count }} }}
+        }}
+        u2: matchedUser(username: "{user2}") {{
+            submitStats: submitStatsGlobal {{ acSubmissionNum {{ difficulty count }} }}
+        }}
+    }}
+    """
+    headers = {
+        "Content-Type": "application/json", 
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://leetcode.com/"
+    }
+    
+    try:
+        response = requests.post(url, json={"query": query}, headers=headers, timeout=10)
+        data = response.json().get("data", {})
+        
+        def parse_stats(user_key):
+            user_data = data.get(user_key)
+            if not user_data or not user_data.get("submitStats"):
+                return 0, 0, 0
+            stats = user_data["submitStats"]["acSubmissionNum"]
+            easy = next((item["count"] for item in stats if item["difficulty"] == "Easy"), 0)
+            medium = next((item["count"] for item in stats if item["difficulty"] == "Medium"), 0)
+            hard = next((item["count"] for item in stats if item["difficulty"] == "Hard"), 0)
+            return easy, medium, hard
 
-    def get_bar(solved, total_max=100):
-        count = min(int((solved / total_max) * 10), 10)
-        return "█" * count + "░" * (10 - count)
+        e1, m1, h1 = parse_stats("u1")
+        e2, m2, h2 = parse_stats("u2")
+
+    except Exception:
+        e1, m1, h1 = 0, 0, 0
+        e2, m2, h2 = 0, 0, 0
 
     return {
         "comparison": {
             "user1": {
-                "Arrays": get_bar(data1.get("easySolved", 0)),
-                "Graphs": get_bar(data1.get("mediumSolved", 0)),
-                "DP": get_bar(data1.get("hardSolved", 0)),
+                "Arrays": get_percentage(e1),
+                "Graphs": get_percentage(m1),
+                "DP": get_percentage(h1),
             },
             "user2": {
-                "Arrays": get_bar(data2.get("easySolved", 0)),
-                "Graphs": get_bar(data2.get("mediumSolved", 0)),
-                "DP": get_bar(data2.get("hardSolved", 0)),
+                "Arrays": get_percentage(e2),
+                "Graphs": get_percentage(m2),
+                "DP": get_percentage(h2),
             }
         }
     }
-
 # 10. Friends Group Leaderboard (Compares 4 specific friends with solved endpoint)
 @app.get("/friends-leaderboard/{user1}/{user2}/{user3}/{user4}")
 def get_friends_leaderboard(user1: str, user2: str, user3: str, user4: str):
