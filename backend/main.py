@@ -83,7 +83,7 @@ async def get_solved_stats(username: str):
 # 1. Profile Analyzer & Dynamic AI Performance Report
 @app.get("/analyze-profile/{username}")
 def analyze_leetcode_profile(username: str):
-    url = f"https://alfa-leetcode-api.onrender.com/{username}/solved"
+    url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
     response = requests.get(url)
     
     if response.status_code != 200:
@@ -115,7 +115,7 @@ def analyze_leetcode_profile(username: str):
 # 2. Predict Contest Rating
 @app.get("/predict-rating/{username}")
 def predict_contest_rating(username: str):
-    url = f"https://alfa-leetcode-api.onrender.com/{username}/contest"
+    url = f"https://alfa-leetcode-api.vercel.app/{username}/contest"
     response = requests.get(url)
     
     if response.status_code != 200:
@@ -143,7 +143,7 @@ def predict_contest_rating(username: str):
 # 3. Achievement System
 @app.get("/achievements/{username}")
 def unlock_achievements(username: str):
-    url = f"https://alfa-leetcode-api.onrender.com/{username}/solved"
+    url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
     response = requests.get(url)
     
     if response.status_code != 200:
@@ -234,8 +234,8 @@ def clear_search_history(db: Session = Depends(get_db)):
 # 8. Consistency Score Calculator
 @app.get("/consistency/{username}")
 def calculate_consistency(username: str):
-    solved_url = f"https://alfa-leetcode-api.onrender.com/{username}/solved"
-    contest_url = f"https://alfa-leetcode-api.onrender.com/{username}/contest"
+    solved_url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
+    contest_url = f"https://alfa-leetcode-api.vercel.app/{username}/contest"
     
     solved_res = requests.get(solved_url)
     contest_res = requests.get(contest_url)
@@ -278,7 +278,7 @@ def calculate_consistency(username: str):
 @app.get("/compare/{user1}/{user2}")
 def compare_with_friend(user1: str, user2: str):
     def get_user_data(username):
-        url = f"https://alfa-leetcode-api.onrender.com/{username}/solved"
+        url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
         try:
             response = requests.get(url, timeout=8)
             return response.json() if response.status_code == 200 else {}
@@ -314,7 +314,7 @@ def get_friends_leaderboard(user1: str, user2: str, user3: str, user4: str):
     friend_data = []
 
     for name in usernames:
-        url = f"https://alfa-leetcode-api.onrender.com/{name}/solved"
+        url = f"https://alfa-leetcode-api.vercel.app/{name}/solved"
         easy, medium, hard, total, xp = 0, 0, 0, 0, 0
 
         try:

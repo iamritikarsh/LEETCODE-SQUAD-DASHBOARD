@@ -977,7 +977,7 @@
         const slug = prob.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
         
         // Fetch directly from the public Alfa API instead of your backend
-        const res = await fetch(`https://alfa-leetcode-api.onrender.com/select?titleSlug=${slug}`);
+const res = await fetch(`https://alfa-leetcode-api.vercel.app/select?titleSlug=${slug}`);
         if (!res.ok) throw new Error("API response not ok");
         
         const data = await res.json();
