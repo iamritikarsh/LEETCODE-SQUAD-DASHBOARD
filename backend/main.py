@@ -319,53 +319,72 @@ def compare_with_friend(user1: str, user2: str):
 
 # 10. Friends Group Leaderboard (Compares 4 specific friends with solved endpoint)
 @app.get("/friends-leaderboard/{user1}/{user2}/{user3}/{user4}")
-async def get_friends_leaderboard(user1: str, user2: str, user3: str, user4: str):
-    usernames = [user1, user2, user3, user4]
+def get_friends_leaderboard(user1: str, user2: str, user3: str, user4: str):
+    # Filter out empty or "none" usernames
+    valid_users = [u for u in [user1, user2, user3, user4] if u and u.lower() not in ["none", "null", "undefined", ""]]
+    
+    if not valid_users:
+        return {"group_leaderboard": []}
+
+    # Build a SINGLE GraphQL query requesting all users at once using aliases
+    query_parts = []
+    for i, user in enumerate(valid_users):
+        query_parts.append(f"""
+        user{i}: matchedUser(username: "{user}") {{
+            submitStats: submitStatsGlobal {{
+                acSubmissionNum {{ difficulty count }}
+            }}
+        }}
+        """)
+        
+    query = "query getSquadStats {\n" + "\n".join(query_parts) + "\n}"
     url = "https://leetcode.com/graphql"
-    query = """
-    query userPublicProfile($username: String!) {
-      matchedUser(username: $username) {
-        submitStats: submitStatsGlobal {
-          acSubmissionNum {
-            difficulty
-            count
-          }
-        }
-      }
+    
+    # Added Referer and full User-Agent to safely bypass Cloudflare
+    headers = {
+        "Content-Type": "application/json", 
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+        "Referer": "https://leetcode.com/"
     }
-    """
-    headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+    
     friend_data = []
+    try:
+        response = requests.post(url, json={"query": query}, headers=headers, timeout=10)
+        data = response.json().get("data", {})
+        
+        for i, user in enumerate(valid_users):
+            easy, medium, hard, total, xp = 0, 0, 0, 0, 0
+            user_data = data.get(f"user{i}")
+            
+            # If the user exists and has a public profile, extract their stats
+            if user_data and user_data.get("submitStats"):
+                stats = user_data["submitStats"]["acSubmissionNum"]
+                easy = next((item["count"] for item in stats if item["difficulty"] == "Easy"), 0)
+                medium = next((item["count"] for item in stats if item["difficulty"] == "Medium"), 0)
+                hard = next((item["count"] for item in stats if item["difficulty"] == "Hard"), 0)
+                total = next((item["count"] for item in stats if item["difficulty"] == "All"), 0)
+                
+                # Apply your custom weighted XP algorithm
+                xp = (easy * 1) + (medium * 3) + (hard * 5)
+                
+            friend_data.append({
+                "username": user,
+                "total_solved": total,
+                "breakdown": {"easy": easy, "medium": medium, "hard": hard},
+                "xp": xp
+            })
+    except Exception as e:
+        # Failsafe if the request gets interrupted
+        for user in valid_users:
+            friend_data.append({
+                "username": user, "total_solved": 0,
+                "breakdown": {"easy": 0, "medium": 0, "hard": 0}, "xp": 0
+            })
 
-    for name in usernames:
-        if not name or name.lower() in ["none", "null", "undefined", ""]:
-            continue
-
-        easy, medium, hard, total, xp = 0, 0, 0, 0, 0
-
-        try:
-            response = requests.post(url, json={"query": query, "variables": {"username": name}}, headers=headers, timeout=8)
-            if response.status_code == 200:
-                data = response.json()
-                if "data" in data and data["data"]["matchedUser"]:
-                    stats = data["data"]["matchedUser"]["submitStats"]["acSubmissionNum"]
-                    easy = next((item["count"] for item in stats if item["difficulty"] == "Easy"), 0)
-                    medium = next((item["count"] for item in stats if item["difficulty"] == "Medium"), 0)
-                    hard = next((item["count"] for item in stats if item["difficulty"] == "Hard"), 0)
-                    total = next((item["count"] for item in stats if item["difficulty"] == "All"), 0)
-                    xp = (easy * 1) + (medium * 3) + (hard * 5)
-        except:
-            pass  # Fallback to 0 if request fails
-
-        friend_data.append({
-            "username": name,
-            "total_solved": total,
-            "breakdown": {"easy": easy, "medium": medium, "hard": hard},
-            "xp": xp
-        })
-
+    # Sort descending by XP
     sorted_friends = sorted(friend_data, key=lambda x: x["xp"], reverse=True)
 
+    # Format the final JSON response for your frontend
     leaderboard_result = []
     for rank, friend in enumerate(sorted_friends, start=1):
         leaderboard_result.append({
