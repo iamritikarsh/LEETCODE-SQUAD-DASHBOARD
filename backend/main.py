@@ -204,17 +204,88 @@ def predict_contest_rating(username: str):
 #     }
 
 # 4. Similar Problem Finder (Fully Dynamic AI)
-@app.get("/recommend-similar/{problem_name}")
-def recommend_similar_problems(problem_name: str):
-    prompt = f"The user just solved the LeetCode problem '{problem_name}'. Recommend exactly 4 similar problems to help them master this specific pattern. Return ONLY a comma-separated list of problem names without extra text."
-    
-    ai_response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-    recommendations = [rec.strip() for rec in ai_response.text.split(",")]
-        
-    return {
-        "user_solved": problem_name,
-        "ai_recommendations": recommendations
+import difflib
+
+@app.get("/recommend/{query_str}")
+def recommend_problems(query_str: str):
+    url = "https://leetcode.com/graphql"
+    headers = {
+        "Content-Type": "application/json", 
+        "User-Agent": "Mozilla/5.0",
+        "Referer": "https://leetcode.com/"
     }
+    
+    # 1. Fetch a broad list of problems from LeetCode to build our search dictionary
+    list_query = """
+    query problemsetQuestionList($categorySlug: String, $limit: Int, $skip: Int, $filters: QuestionListFilterInput) {
+      problemsetQuestionList: questionList(
+        categorySlug: $categorySlug
+        limit: $limit
+        skip: $skip
+        filters: $filters
+      ) {
+        questions: data {
+          title
+          titleSlug
+          difficulty
+          topicTags { name }
+        }
+      }
+    }
+    """
+    payload = {
+        "query": list_query,
+        "variables": {"categorySlug": "", "limit": 100, "skip": 0, "filters": {}}
+    }
+    
+    try:
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        data = response.json()
+        questions = data.get("data", {}).get("problemsetQuestionList", {}).get("questions", [])
+        
+        if not questions:
+            return {"error": "Could not fetch problem database from LeetCode."}
+            
+        # 2. Extract titles and map them back to their full question objects
+        title_map = {q["title"].lower(): q for q in questions}
+        available_titles = list(title_map.keys())
+        
+        # 3. Fuzzy match the user query to handle typos/wrong spellings gracefully
+        best_matches = difflib.get_close_matches(query_str.lower(), available_titles, n=1, cutoff=0.3)
+        
+        if not best_matches:
+            return {"error": f"No matching problem found for '{query_str}'. Try another name."}
+            
+        matched_q = title_map[best_matches[0]]
+        q_title = matched_q["title"]
+        q_diff = matched_q["difficulty"]
+        q_tags = ", ".join([t["name"] for t in matched_q.get("topicTags", [])]) or "Algorithms"
+        
+        # 4. Generate AI recommendations using Gemini
+        ai_recommendation = f"Practice similar problems focusing on {q_tags}."
+        try:
+            prompt = f"""
+            Act as an expert data structures mentor. The user searched for the LeetCode problem '{q_title}' (Difficulty: {q_diff}, Topics: {q_tags}).
+            Provide:
+            1. A 1-sentence core intuition for solving it.
+            2. 2 similar LeetCode problems they should practice next.
+            Keep it concise and punchy.
+            """
+            ai_res = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+            ai_recommendation = ai_res.text
+        except:
+            ai_recommendation = f"Mastering {q_title} requires strong understanding of {q_tags}. Focus on time complexity optimization."
+
+        return {
+            "query": query_str,
+            "matched_title": q_title,
+            "difficulty": q_diff,
+            "topics": q_tags,
+            "recommendation": ai_recommendation
+        }
+
+    except Exception as e:
+        return {"error": f"Error processing recommendation: {str(e)}"}
 
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI - No Hardcoded Answers)
 # 5. Open-Ended AI Chatbot (Fully Dynamic AI with Safety Guardrail)
