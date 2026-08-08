@@ -209,42 +209,28 @@ import difflib
 @app.get("/recommend/{query_str}")
 def recommend_problems(query_str: str):
     try:
-        # Ask Gemini to handle typo correction, identify the real problem, and provide recommendations directly
         prompt = f"""
-        An engineering student typed the LeetCode problem name or search query: '{query_str}'. 
-        1. Identify the most likely correct LeetCode problem name.
-        2. Provide exactly 3 short, actionable practice recommendations or similar problem types separated by commas.
-        Format your response strictly as:
-        Problem: [Corrected Problem Name]
-        Recommendations: [Rec 1], [Rec 2], [Rec 3]
+        Provide 3 short practice recommendations for the LeetCode problem: '{query_str}'.
+        Return ONLY 3 bullet points, nothing else.
         """
-        
         ai_res = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-        text = ai_res.text
-        
-        # Parse the AI response safely
-        corrected_title = query_str.title()
-        recs = ["Focus on core data structures", "Practice time complexity optimization", "Review pattern recognition"]
-        
-        for line in text.split("\n"):
-            if "Problem:" in line:
-                corrected_title = line.replace("Problem:", "").strip()
-            elif "Recommendations:" in line:
-                rec_part = line.replace("Recommendations:", "").strip()
-                recs = [r.strip() for r in rec_part.split(",") if len(r.strip()) > 3][:3]
-
+        lines = [line.strip("- *123.") for line in ai_res.text.split("\n") if len(line.strip()) > 5]
+        recs = lines[:3] if len(lines) >= 3 else [
+            "Focus on optimal time and space complexity",
+            "Practice similar array and hashing patterns",
+            "Review edge cases and constraints"
+        ]
         return {
-            "user_solved": corrected_title,
+            "user_solved": query_str.title(),
             "ai_recommendations": recs
         }
-
-    except Exception as e:
+    except Exception:
         return {
             "user_solved": query_str.title(),
             "ai_recommendations": [
-                "Master the underlying algorithmic patterns",
-                "Practice optimal space-time complexity",
-                "Solve variations of this problem type"
+                "Master the underlying data structures",
+                "Optimize your solution's runtime",
+                "Solve related pattern variations"
             ]
         }
 

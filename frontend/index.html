@@ -971,52 +971,32 @@
 
         
 
-        async function fetchSimilar() {
+async function fetchSimilar() {
     const prob = document.getElementById("similar-input").value.trim();
     const resDiv = document.getElementById("similar-result");
-    
     if (!prob) return;
     
     resDiv.classList.remove("hidden");
-    resDiv.innerHTML = `<span class="shimmer-text">Searching LeetCode database...</span>`;
+    resDiv.innerHTML = `<span class="shimmer-text">Analyzing problem with AI...</span>`;
     
     try {
-        // Convert the typed name (e.g., "Two Sum") into a LeetCode slug ("two-sum")
-        const slug = prob.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
-        
-        // Fetch directly from the public Alfa API instead of your backend
-const res = await fetch(`https://alfa-leetcode-api.vercel.app/select?titleSlug=${slug}`);
-        if (!res.ok) throw new Error("API response not ok");
-        
+        const res = await fetch(`${API_URL}/recommend/${encodeURIComponent(prob)}`);
         const data = await res.json();
         
-        // LeetCode returns similar questions as a stringified JSON array
-        let similarList = [];
-        if (data.similarQuestions) {
-            try {
-                similarList = JSON.parse(data.similarQuestions);
-            } catch(err) {
-                console.error("Error parsing similar questions", err);
-            }
+        if (data.error || !data.ai_recommendations) {
+            throw new Error(data.error || "Invalid response");
         }
-
-        // Output a clean, clickable UI list
-        if (similarList.length > 0) {
-            let html = `<div class="font-mono font-bold text-[#E8C468] mb-2 flash-in">Similar to ${data.questionTitle || prob}:</div>`;
-            similarList.forEach((item, idx) => {
-                const diffColor = item.difficulty === 'Easy' ? 'text-emerald-400' : item.difficulty === 'Medium' ? 'text-amber-400' : 'text-rose-400';
-                html += `
-                    <div class="flex justify-between items-center bg-black/40 p-2.5 rounded-lg mt-1 border border-white/5 flash-in" style="animation-delay:${idx * 0.06}s">
-                        <a href="https://leetcode.com/problems/${item.titleSlug}" target="_blank" class="text-slate-200 hover:text-[#E8C468] hover:underline transition-colors text-sm">${item.title}</a>
-                        <span class="text-[10px] uppercase font-bold ${diffColor}">${item.difficulty}</span>
-                    </div>`;
-            });
-            resDiv.innerHTML = html;
-        } else {
-            resDiv.innerHTML = `<span class="text-slate-400 flash-in">No similar problems found for '${prob}'. Check your spelling!</span>`;
-        }
-    } catch (e) { 
-        resDiv.innerHTML = `<span class="text-red-400 flash-in">Error finding recommendations. Ensure the problem name is correct (e.g., "Two Sum").</span>`; 
+        
+        let html = `<div class="font-mono font-bold text-[#E8C468] mb-2 flash-in">Recommendations for "${data.user_solved || prob}":</div>`;
+        html += `<ul class="list-disc list-inside text-xs text-slate-300 space-y-1.5">`;
+        data.ai_recommendations.forEach(rec => {
+            html += `<li>${rec}</li>`;
+        });
+        html += `</ul>`;
+        
+        resDiv.innerHTML = html;
+    } catch (e) {
+        resDiv.innerHTML = `<p class="text-xs text-slate-300 p-2">💡 Tip for "${prob}": Focus on time complexity and practice similar pattern recognition questions!</p>`;
     }
 }
 
