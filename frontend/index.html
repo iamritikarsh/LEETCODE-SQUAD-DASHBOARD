@@ -977,29 +977,33 @@ async function fetchSimilar() {
     if (!prob) return;
     
     resDiv.classList.remove("hidden");
-    resDiv.innerHTML = `<span class="shimmer-text">Analyzing problem with AI...</span>`;
+    resDiv.innerHTML = `<span class="shimmer-text">Finding similar problems on LeetCode...</span>`;
     
     try {
         const res = await fetch(`${API_URL}/recommend/${encodeURIComponent(prob)}`);
         const data = await res.json();
         
-        if (data.error || !data.ai_recommendations) {
-            throw new Error(data.error || "Invalid response");
+        let similarList = data.similarList || [];
+        
+        if (similarList.length > 0) {
+            let html = `<div class="font-mono font-bold text-[#E8C468] mb-2 flash-in">Similar to ${data.user_solved || prob}:</div>`;
+            similarList.forEach((item) => {
+                let diffColor = item.difficulty === 'Easy' ? 'text-emerald-400' : item.difficulty === 'Medium' ? 'text-amber-400' : 'text-rose-400';
+                html += `
+                    <div class="flex justify-between items-center bg-black/40 p-2.5 rounded-xl mt-1 border border-white/5 hover:border-[#C9A227]/40 transition-all">
+                        <a href="https://leetcode.com/problems/${item.slug}/" target="_blank" class="text-slate-200 hover:text-[#C9A227] text-xs font-medium transition-colors">${item.title}</a>
+                        <span class="text-[10px] uppercase font-bold ${diffColor}">${item.difficulty}</span>
+                    </div>
+                `;
+            });
+            resDiv.innerHTML = html;
+        } else {
+            resDiv.innerHTML = `<span class="text-slate-400 text-xs">No similar problems found for '${prob}'.</span>`;
         }
-        
-        let html = `<div class="font-mono font-bold text-[#E8C468] mb-2 flash-in">Recommendations for "${data.user_solved || prob}":</div>`;
-        html += `<ul class="list-disc list-inside text-xs text-slate-300 space-y-1.5">`;
-        data.ai_recommendations.forEach(rec => {
-            html += `<li>${rec}</li>`;
-        });
-        html += `</ul>`;
-        
-        resDiv.innerHTML = html;
     } catch (e) {
-        resDiv.innerHTML = `<p class="text-xs text-slate-300 p-2">💡 Tip for "${prob}": Focus on time complexity and practice similar pattern recognition questions!</p>`;
+        resDiv.innerHTML = `<p class="text-red-400 text-xs">Error finding recommendations. Ensure the problem name is correct.</p>`;
     }
 }
-
         async function sendChat() {
     const questionInput = document.getElementById("chat-question");
     const question = questionInput.value.trim();

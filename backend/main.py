@@ -209,28 +209,40 @@ import difflib
 @app.get("/recommend/{query_str}")
 def recommend_problems(query_str: str):
     try:
+        # Prompt Gemini to act as a LeetCode database engine with slugs and difficulties
         prompt = f"""
-        Provide 3 short practice recommendations for the LeetCode problem: '{query_str}'.
-        Return ONLY 3 bullet points, nothing else.
+        A student searched for the LeetCode problem: '{query_str}'. 
+        Find the exact or closest matching official LeetCode problem name, and recommend 4 to 5 genuinely similar LeetCode problems.
+        For each similar problem, provide its exact title, its difficulty ('Easy', 'Medium', or 'Hard'), and its valid LeetCode URL slug (lowercase, hyphen-separated, e.g., 'container-with-most-water').
+        
+        Format your response strictly as valid JSON with this structure:
+        {{
+          "matched_title": "Official Problem Name",
+          "similar": [
+            {{"title": "Similar Problem 1", "difficulty": "Medium", "slug": "slug-one"}},
+            {{"title": "Similar Problem 2", "difficulty": "Hard", "slug": "slug-two"}}
+          ]
+        }}
+        Return ONLY the raw JSON block, no markdown codeblocks.
         """
+        
         ai_res = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-        lines = [line.strip("- *123.") for line in ai_res.text.split("\n") if len(line.strip()) > 5]
-        recs = lines[:3] if len(lines) >= 3 else [
-            "Focus on optimal time and space complexity",
-            "Practice similar array and hashing patterns",
-            "Review edge cases and constraints"
-        ]
+        text = ai_res.text.strip().replace("```json", "").replace("```", "").strip()
+        
+        import json
+        data = json.loads(text)
         return {
-            "user_solved": query_str.title(),
-            "ai_recommendations": recs
+            "user_solved": data.get("matched_title", query_str.title()),
+            "similarList": data.get("similar", [])
         }
-    except Exception:
+    except Exception as e:
+        # Fallback response if JSON parsing fails
         return {
             "user_solved": query_str.title(),
-            "ai_recommendations": [
-                "Master the underlying data structures",
-                "Optimize your solution's runtime",
-                "Solve related pattern variations"
+            "similarList": [
+                {"title": "Two Sum", "difficulty": "Easy", "slug": "two-sum"},
+                {"title": "3Sum", "difficulty": "Medium", "slug": "3sum"},
+                {"title": "Product of Array Except Self", "difficulty": "Medium", "slug": "product-of-array-except-self"}
             ]
         }
 
