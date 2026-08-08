@@ -673,7 +673,7 @@
 
         async function loadMyHeroStats() {
             try {
-                const solvedRes = await fetch(`https://alfa-leetcode-api.onrender.com/${myUser}/solved`);
+               const solvedRes = await fetch(`${API_URL}/solved/${myUser}`);
                 const solvedData = await solvedRes.json();
 
                 const consistencyRes = await fetch(`${API_URL}/consistency/${myUser}`);

@@ -37,7 +37,14 @@ class ChatQuery(BaseModel):
 @app.get("/")
 def read_root():
     return {"message": "Welcome to my LeetCode Profile Analyzer & AI Coach API!"}
-
+@app.get("/solved/{username}")
+async def get_solved_stats(username: str):
+    try:
+        url = f"https://alfa-leetcode-api.onrender.com/{username}/solved"
+        response = requests.get(url)
+        return response.json()
+    except Exception as e:
+        return {"solvedProblem": 0, "easySolved": 0, "mediumSolved": 0, "hardSolved": 0}
 # 1. Profile Analyzer & Dynamic AI Performance Report
 @app.get("/analyze-profile/{username}")
 def analyze_leetcode_profile(username: str):
