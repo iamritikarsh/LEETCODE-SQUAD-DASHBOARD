@@ -83,34 +83,52 @@ async def get_solved_stats(username: str):
 # 1. Profile Analyzer & Dynamic AI Performance Report
 @app.get("/analyze-profile/{username}")
 def analyze_leetcode_profile(username: str):
-    url = f"https://alfa-leetcode-api.vercel.app/{username}/solved"
-    response = requests.get(url)
-    
-    if response.status_code != 200:
-        return {"error": "Could not fetch data. Check if the username is correct!"}
-    
-    data = response.json()
-    total = data.get("solvedProblem", 0)
-    easy = data.get("easySolved", 0)
-    medium = data.get("mediumSolved", 0)
-    hard = data.get("hardSolved", 0)
-    
-    prompt = f"""
-    Act as an expert coding mentor. The user '{username}' has solved {total} total problems ({easy} Easy, {medium} Medium, {hard} Hard).
-    Provide a short 2-sentence performance report and a 3-item daily practice recommendation for C++.
-    """
-    ai_response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
-    
-    return {
-        "user": username,
-        "raw_stats": {
+    try:
+        # 1. Fetch real stats directly from LeetCode GraphQL
+        url = "https://leetcode.com/graphql"
+        query = """
+        query userPublicProfile($username: String!) {
+          matchedUser(username: $username) {
+            profile { ranking, reputation }
+            submitStats: submitStatsGlobal {
+              acSubmissionNum { difficulty, count }
+            }
+          }
+        }
+        """
+        payload = {"query": query, "variables": {"username": username}}
+        headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
+        
+        response = requests.post(url, json=payload, headers=headers)
+        data = response.json()["data"]["matchedUser"]
+        
+        profile = data["profile"]
+        stats = data["submitStats"]["acSubmissionNum"]
+        
+        total = next((item["count"] for item in stats if item["difficulty"] == "All"), 0)
+        easy = next((item["count"] for item in stats if item["difficulty"] == "Easy"), 0)
+        medium = next((item["count"] for item in stats if item["difficulty"] == "Medium"), 0)
+        hard = next((item["count"] for item in stats if item["difficulty"] == "Hard"), 0)
+        
+        # 2. Keep your exact Gemini AI prompt intact
+        prompt = f"""
+Act as an expert coding mentor. The user '{username}' has solved {total} total problems ({easy} Easy, {medium} Medium, {hard} Hard).
+Provide a short 2-sentence performance report and a 3-item daily practice recommendation for C++.
+"""
+        ai_response = client.models.generate_content(model='gemini-2.0-flash', contents=prompt)
+        
+        # 3. Return both the stats for the UI and the AI report
+        return {
+            "ranking": profile["ranking"],
+            "reputation": profile["reputation"],
             "total_solved": total,
             "easy": easy,
             "medium": medium,
-            "hard": hard
-        },
-        "ai_coach_report": ai_response.text
-    }
+            "hard": hard,
+            "ai_coach_report": ai_response.text
+        }
+    except Exception as e:
+        return {"error": str(e), "ranking": "N/A", "reputation": 0, "total_solved": 0}
 
 # 2. Predict Contest Rating
 @app.get("/predict-rating/{username}")
