@@ -4,4 +4,3 @@ requests
 pydantic
 google-genai
 sqlalchemy
-google-genai

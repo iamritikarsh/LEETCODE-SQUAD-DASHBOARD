@@ -1,18 +1,14 @@
 from google import genai
 import os
 client = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
-from google import genai
 import os
 # Initialize AI Model
-genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-model = genai.GenerativeModel('gemini-1.5-flash')
 from fastapi import FastAPI, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import SessionLocal, engine, Base
 import models
 import requests
-from google import genai
 from fastapi.middleware.cors import CORSMiddleware
 # Create the database tables
 Base.metadata.create_all(bind=engine)
