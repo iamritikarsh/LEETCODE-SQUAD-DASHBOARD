@@ -898,23 +898,34 @@
         }
 
         async function loadMyAchievements() {
-            const resDiv = document.getElementById("achievement-result");
-            const badgeTag = document.getElementById("badge-count-tag");
-            try {
-                const res = await fetch(`${API_URL}/achievements/${myUser}`);
-                if (!res.ok) throw new Error("Failed");
-                const data = await res.json();
-                badgeTag.innerText = `Total: ${data.total_badges || 0}`;
-                let badges = data.badges || [];
-                let html = "";
-                badges.forEach((b, idx) => {
-                    html += `<span class="px-3 py-1.5 bg-black/30 border border-[#C9A227]/25 rounded-xl text-xs font-mono font-semibold text-[#E8C468] shadow-sm flex items-center gap-1.5 reveal" style="animation-delay:${idx * 0.06}s">${b}</span>`;
-                });
-                resDiv.innerHTML = html || '<p class="text-slate-500 text-center w-full">No badges unlocked yet.</p>';
-            } catch (e) {
-                resDiv.innerHTML = `<span class="px-3 py-1.5 bg-black/30 border border-[#C9A227]/25 rounded-xl text-xs font-mono font-semibold text-[#E8C468] reveal">100 Easy</span><span class="px-3 py-1.5 bg-black/30 border border-[#C9A227]/25 rounded-xl text-xs font-mono font-semibold text-[#E8C468] reveal" style="animation-delay:.08s">Medium Master</span>`;
-            }
-        }
+    const resDiv = document.getElementById("achievement-result");
+    const badgeTag = document.getElementById("badge-count-tag");
+    try {
+        const res = await fetch(`${API_URL}/achievements/${myUser}`);
+        if (!res.ok) throw new Error("Failed");
+        const data = await res.json();
+        
+        let badges = data.badges || [];
+        // Dynamically set the total count based on the array length
+        badgeTag.innerText = `Total: ${badges.length}`;
+        
+        let html = "";
+        badges.forEach((b) => {
+            html += `
+            <div class="relative group flex items-center justify-center p-2 bg-black/40 border border-[#C9A227]/20 rounded-xl hover:border-[#C9A227]/80 hover:bg-[#C9A227]/10 transition-all cursor-help">
+                <img src="${b.icon}" alt="${b.name}" class="w-12 h-12 object-contain drop-shadow-lg" />
+                <span class="absolute -top-8 bg-[#0f172a] text-[#C9A227] text-[10px] font-mono px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 border border-[#C9A227]/30 shadow-xl pointer-events-none">
+                    ${b.name}
+                </span>
+            </div>`;
+        });
+        
+        // Wrap the badges in a flex container for a clean layout
+        resDiv.innerHTML = html ? `<div class="flex flex-wrap gap-3 pt-1">${html}</div>` : '<p class="text-slate-500 text-center w-full">No badges unlocked yet.</p>';
+    } catch (e) {
+        resDiv.innerHTML = '<p class="text-red-400 text-xs text-center w-full py-2">Error loading achievements.</p>';
+    }
+}
 
         async function runComparison() {
             const u1 = document.getElementById("comp-user1").value.trim();
