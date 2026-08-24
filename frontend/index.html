@@ -1832,8 +1832,8 @@
             lerp: 0.07,                 // Linear interpolation physics for 144Hz liquid smoothness
             smoothWheel: true,
             wheelMultiplier: 1.15,      // Snappy and responsive wheel travel
-            touchMultiplier: 1.5,
-            syncTouch: true,
+            smoothTouch: false,         // MUST BE FALSE: Let mobile devices use native GPU scrolling
+            syncTouch: false,           // MUST BE FALSE: Allows native pinch-to-zoom on smartphones
             normalizeWheel: true,       // Normalizes raw wheel input so mice don't jump/stutter
             infinite: false,
         });
