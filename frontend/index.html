@@ -1282,6 +1282,57 @@
       border-color: rgba(0, 245, 255, 0.3);
       box-shadow: 0 0 15px rgba(0, 245, 255, 0.3), inset 0 0 10px rgba(0, 245, 255, 0.15);
     }
+    
+    /* RESPONSIVE MOBILE FIXES */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+    }
+    .setup-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    @media (min-width: 768px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+      .setup-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+      }
+    }
+    @media (max-width: 768px) {
+      .neon-card {
+        padding: 16px !important;
+      }
+      #top-nav {
+        padding: 0 16px !important;
+      }
+      #top-nav > div:first-child span {
+        font-size: 13px !important;
+      }
+      #top-nav > div:last-child {
+        gap: 6px !important;
+      }
+      #logged-in-user-tag {
+        font-size: 11px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100px;
+      }
+      #reset-btn {
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+      }
+    }
+    .chart-wrap {
+      position: relative;
+      width: 100%;
+    }
   </style>
 </head>
 <body>
@@ -1412,7 +1463,7 @@
           <label style="display:block;font-family:JetBrains Mono,monospace;font-size:15px;color:var(--pink);text-transform:uppercase;letter-spacing:0.15em;margin-bottom:8px;">YOUR HANDLE</label>
           <input type="text" id="my-username" placeholder="e.g. codemaster99" class="input-neon">
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:28px;">
+        <div class="setup-grid">
           <div>
             <label style="display:block;font-family:JetBrains Mono,monospace;font-size:15px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;">RIVAL 01</label>
             <input type="text" id="friend1-username" placeholder="striver" class="input-neon" style="font-size:15px;padding:10px 14px;">
@@ -1544,7 +1595,7 @@
       </section>
 
       <!-- PROFILE + RATING GRID -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+      <div class="dashboard-grid">
         <!-- Profile Analytics -->
         <section class="neon-card io-reveal" style="padding:28px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -1568,7 +1619,7 @@
       </div>
 
       <!-- CONSISTENCY + RIVALRY GRID -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+      <div class="dashboard-grid">
         <!-- Consistency -->
         <section class="neon-card io-reveal" style="padding:28px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
@@ -1603,7 +1654,7 @@
       </div>
 
       <!-- BADGES + PROBLEMS GRID -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+      <div class="dashboard-grid">
         <!-- Earned Badges -->
         <section class="neon-card io-reveal" style="padding:28px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
