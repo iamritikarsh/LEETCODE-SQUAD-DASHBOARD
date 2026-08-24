@@ -85,33 +85,33 @@
 
 
     
-    /* ═══ PREMIUM MAGNETIC CURSOR ═══ */
+    /* ── PREMIUM MAGNETIC CURSOR ── */
     #cursor-dot {
       position: fixed;
+      top: 0; left: 0;
       width: 8px; height: 8px;
       background: white;
       border-radius: 50%;
       pointer-events: none;
       z-index: 9999;
-      /* Use left/top positioning set by JS — transform just centres it */
-      transform: translate(-50%, -50%);
+      margin: -4px 0 0 -4px; /* Center it precisely based on width/height */
       transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), height 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       mix-blend-mode: difference;
-      opacity: 0; /* hidden until first mousemove */
-      will-change: left, top;
+      opacity: 0;
+      will-change: transform;
     }
     #cursor-ring {
       position: fixed;
+      top: 0; left: 0;
       width: 40px; height: 40px;
       border: 1.5px dashed rgba(255, 255, 255, 0.6);
       border-radius: 50%;
       pointer-events: none;
       z-index: 9998;
-      transform: translate(-50%, -50%);
-      /* NO mix-blend-mode on ring — it conflicts with dot's blend mode and causes freezes */
+      margin: -20px 0 0 -20px; /* Center it precisely */
       transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s, opacity 0.3s;
-      opacity: 0; /* hidden until first mousemove */
-      will-change: left, top, transform;
+      opacity: 0;
+      will-change: transform;
     }
 
     
@@ -1766,66 +1766,66 @@
       const ring = document.getElementById('cursor-ring');
       if (!dot || !ring) return;
 
-      // Current true mouse position (updated instantly on every move)
-      let mouseX = -200, mouseY = -200;
-      // Trailing ring position — lerps toward mouse each frame
-      let ringX = -200,  ringY = -200;
+      // Current true mouse position
+      let mouseX = window.innerWidth / 2;
+      let mouseY = window.innerHeight / 2;
+      
+      // Trailing ring position
+      let ringX = mouseX;
+      let ringY = mouseY;
+      
       let rotation  = 0;
       let isHovering = false;
       let isVisible  = false;
-      let rafId = null;
 
-      // ── Show cursor on first mouse movement ──
-      function showCursor() {
+      // ── Track real mouse position ──
+      document.addEventListener('mousemove', (e) => {
         if (!isVisible) {
           dot.style.opacity  = '1';
           ring.style.opacity = '1';
           isVisible = true;
         }
-      }
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        
+        // Instant GPU transform for the dot (zero lag)
+        dot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0)`;
+      });
 
-      // ── Hide cursor when mouse leaves the page window ──
-      document.addEventListener('mouseleave', () => {
+      // ── Hide cursor when it completely leaves the browser window ──
+      // document.documentElement ensures it only fires when leaving the HTML tag entirely, 
+      // preventing false triggers when scrolling over internal elements
+      document.documentElement.addEventListener('mouseleave', () => {
         dot.style.opacity  = '0';
         ring.style.opacity = '0';
         isVisible = false;
       });
-
-      // ── Re-show when mouse comes back ──
-      document.addEventListener('mouseenter', () => {
-        showCursor();
-      });
-
-      // ── Track real mouse position — dot snaps instantly ──
-      document.addEventListener('mousemove', (e) => {
-        showCursor();
-        mouseX = e.clientX;
-        mouseY = e.clientY;
-        // Dot is instant — no lerp, no lag
-        dot.style.left = mouseX + 'px';
-        dot.style.top  = mouseY + 'px';
+      document.documentElement.addEventListener('mouseenter', () => {
+        if (mouseX > 0) {
+          dot.style.opacity  = '1';
+          ring.style.opacity = '1';
+          isVisible = true;
+        }
       });
 
       // ── RAF loop — ring lazily follows the dot ──
       function tick() {
-        // Lerp factor: 0.12 = smooth trail without feeling sluggish
-        const lerpFactor = 0.12;
+        // Higher lerp factor = tighter, less laggy follow
+        const lerpFactor = 0.16;
         ringX += (mouseX - ringX) * lerpFactor;
         ringY += (mouseY - ringY) * lerpFactor;
 
-        ring.style.left = ringX + 'px';
-        ring.style.top  = ringY + 'px';
-
-        // Spin the dashed ring — faster while hovering an interactive element
+        // Spin the dashed ring
         rotation += isHovering ? 3 : 0.6;
-        ring.style.transform = `translate(-50%, -50%) rotate(${rotation}deg)`;
+        
+        // Apply GPU transform for both position and rotation simultaneously
+        ring.style.transform = `translate3d(${ringX}px, ${ringY}px, 0) rotate(${rotation}deg)`;
 
-        rafId = requestAnimationFrame(tick);
+        requestAnimationFrame(tick);
       }
-      rafId = requestAnimationFrame(tick);
+      requestAnimationFrame(tick);
 
-      // ── Hover detection via event delegation — catches dynamically added elements ──
-      // No querySelectorAll at init — this works on leaderboard rows, badges, etc.
+      // ── Hover detection via event delegation ──
       const HOVER_SELECTORS = ['button', 'a', 'input', 'select', '.badge-icon', '[data-hover]'];
       
       document.addEventListener('mouseover', (e) => {
@@ -1834,8 +1834,11 @@
           isHovering = true;
           dot.style.width    = '4px';
           dot.style.height   = '4px';
+          dot.style.margin   = '-2px 0 0 -2px'; // Re-center based on new size
+          
           ring.style.width   = '60px';
           ring.style.height  = '60px';
+          ring.style.margin  = '-30px 0 0 -30px'; // Re-center based on new size
           ring.style.borderColor = 'rgba(255, 0, 102, 0.9)';
           ring.style.borderStyle = 'solid';
         }
@@ -1847,8 +1850,11 @@
           isHovering = false;
           dot.style.width    = '8px';
           dot.style.height   = '8px';
+          dot.style.margin   = '-4px 0 0 -4px';
+          
           ring.style.width   = '40px';
           ring.style.height  = '40px';
+          ring.style.margin  = '-20px 0 0 -20px';
           ring.style.borderColor = 'rgba(255, 255, 255, 0.6)';
           ring.style.borderStyle = 'dashed';
         }
