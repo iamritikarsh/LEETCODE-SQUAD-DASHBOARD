@@ -1,0 +1,20 @@
+name: Keep Render Backend Alive
+
+on:
+  schedule:
+    # Runs every 14 minutes to prevent Render's 15-minute idle sleep
+    - cron: '*/14 * * * *'
+  workflow_dispatch: # Allows manual triggering if needed
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API Root
+        # Replace with your actual render URL if different, but this is the current one
+        run: |
+          status_code=$(curl -o /dev/null -s -w "%{http_code}\n" https://leetcode-squad-backend.onrender.com/)
+          echo "Received status code: $status_code"
+          if [ "$status_code" -ne 200 ]; then
+            echo "Warning: Backend did not return 200 OK. It might be spinning up."
+          fi
