@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>SQUADLADDER - Cyberpunk Anime Dashboard</title>
 
   <!-- CDN Scripts (in exact order) -->
@@ -65,6 +65,9 @@
       cursor: none;
       /* Ensure the browser doesn't add any extra scroll inertia */
       overscroll-behavior: none;
+      /* Tell mobile browser this element handles touch input — enables native compositing */
+      touch-action: manipulation;
+      -webkit-overflow-scrolling: touch;
     }
     
     body {
@@ -73,6 +76,9 @@
       color: var(--text);
       overflow-x: hidden;
       position: relative;
+      /* GPU layer for the whole page — smoother repaints during scroll & zoom */
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
     }
     
 
@@ -1889,12 +1895,13 @@
     function initSmoothScroll() {
         if (window.innerWidth <= 768) return; // Completely disable JS scroll override on mobile for perfect zoom physics
         const lenis = new Lenis({
-            lerp: 0.07,                 // Linear interpolation physics for 144Hz liquid smoothness
+            lerp: 0.1,               // 0.1 = silky smooth deceleration without feeling sluggish
             smoothWheel: true,
-            wheelMultiplier: 1.15,      // Snappy and responsive wheel travel
-            smoothTouch: false,         // MUST BE FALSE: Let mobile devices use native GPU scrolling
-            syncTouch: false,           // MUST BE FALSE: Allows native pinch-to-zoom on smartphones
-            normalizeWheel: true,       // Normalizes raw wheel input so mice don't jump/stutter
+            wheelMultiplier: 1.0,    // 1.0 = natural, 1:1 wheel feel — no over-acceleration
+            smoothTouch: false,      // Native mobile GPU scrolling — never override
+            syncTouch: false,        // Required for pinch-to-zoom to work on phones
+            touchInertiaMultiplier: 35, // Momentum after finger lift — feels like native iOS
+            normalizeWheel: true,    // Prevents gaming mice from jumping huge distances
             infinite: false,
         });
 
