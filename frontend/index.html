@@ -1829,12 +1829,12 @@
 
     function initSmoothScroll() {
         const lenis = new Lenis({
-            duration: 1.6,              // slightly longer glide feels silkier
-            easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // expo ease-out
+            lerp: 0.07,                 // Linear interpolation physics for 144Hz liquid smoothness
             smoothWheel: true,
-            wheelMultiplier: 0.8,       // reduce wheel sensitivity so it doesn't jump
-            touchMultiplier: 1.2,       // responsive on touch/trackpad
+            wheelMultiplier: 1.15,      // Snappy and responsive wheel travel
+            touchMultiplier: 1.5,
             syncTouch: true,
+            normalizeWheel: true,       // Normalizes raw wheel input so mice don't jump/stutter
             infinite: false,
         });
 
