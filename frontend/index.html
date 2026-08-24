@@ -752,6 +752,13 @@
       overflow: hidden;
       filter: blur(24px);
       opacity: 0.8;
+      pointer-events: none; /* Critical for zoom performance */
+      will-change: transform;
+    }
+    @media (max-width: 768px) {
+      .bubbles {
+        filter: blur(4px); /* Heavy blur causes massive GPU lag on mobile during zoom */
+      }
     }
     .bubble {
       position: absolute;
@@ -1651,6 +1658,7 @@
 
     // ScrollTrigger needs to be registered
     gsap.registerPlugin(ScrollTrigger);
+    ScrollTrigger.config({ ignoreMobileResize: true });
 
     window.onload = function() {
       // Inject anime slash element into all neon cards
