@@ -147,30 +147,43 @@ def analyze_leetcode_profile(username: str):
 # 2. Predict Contest Rating
 @app.get("/predict-rating/{username}")
 def predict_contest_rating(username: str):
-    url = f"https://alfa-leetcode-api.vercel.app/{username}/contest"
-    response = requests.get(url)
-    
-    if response.status_code != 200:
-        return {"error": "Could not fetch contest data."}
-    
-    data = response.json()
-    raw_rating = data.get("contestRating")
-    
-    if not raw_rating:
-        return {"message": f"User {username} hasn't participated in enough contests yet!"}
+    try:
+        url = "https://leetcode.com/graphql"
+        query = """query userContestRankingInfo($username: String!) { userContestRanking(username: $username) { rating } }"""
+        payload = {"query": query, "variables": {"username": username}}
+        headers = {"Content-Type": "application/json", "User-Agent": "Mozilla/5.0"}
         
-    current_rating = round(raw_rating)
-    
-    return {
-        "user": username,
-        "current_rating": current_rating,
-        "prediction": {
-            "1_month": current_rating + 50,
-            "3_months": current_rating + 120,
-            "6_months": current_rating + 250
-        },
-        "badge_unlocked": "Contest Competitor 🏆"
-    }
+        response = requests.post(url, json=payload, headers=headers).json()
+        ranking_data = response.get("data", {}).get("userContestRanking")
+        
+        if not ranking_data or not ranking_data.get("rating"):
+            # Default fallback for users with no contests
+            return {
+                "user": username,
+                "current_rating": 1500,
+                "prediction": {
+                    "1_month": 1540,
+                    "3_months": 1600,
+                    "6_months": 1680
+                },
+                "badge_unlocked": "Newbie"
+            }
+            
+        raw_rating = ranking_data.get("rating")
+        current_rating = round(raw_rating)
+        
+        return {
+            "user": username,
+            "current_rating": current_rating,
+            "prediction": {
+                "1_month": current_rating + 50,
+                "3_months": current_rating + 120,
+                "6_months": current_rating + 250
+            },
+            "badge_unlocked": "Contest Competitor"
+        }
+    except Exception as e:
+        return {"error": "Could not fetch contest data."}
 
 # # 3. Achievement System
 # @app.get("/achievements/{username}")
@@ -331,6 +344,21 @@ async def get_consistency(username: str):
         return {"consistency_score": f"{int(score)}%"}
     except:
         return {"consistency_score": "0%"}
+
+# --- DAILY ACTIVITY ---
+@app.get("/activity/{username}")
+async def get_activity(username: str):
+    try:
+        url = "https://leetcode.com/graphql"
+        query = """query ($username: String!) { matchedUser(username: $username) { userCalendar { submissionCalendar } } }"""
+        response = requests.post(url, json={"query": query, "variables": {"username": username}}).json()
+        
+        calendar = response["data"]["matchedUser"]["userCalendar"]["submissionCalendar"]
+        import json
+        calendar_dict = json.loads(calendar)
+        return {"activity": calendar_dict}
+    except Exception as e:
+        return {"activity": {}}
 
 # --- EARNED BADGES ---
 @app.get("/achievements/{username}")
