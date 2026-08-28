@@ -2005,15 +2005,6 @@
           .to("#hero-subtitle", { opacity: 1, y: 0, duration: 0.8, ease: "power3.out" }, "-=0.4")
           .to("#setup-section", { opacity: 1, y: 0, duration: 1, ease: "back.out(1.2)" }, "-=0.2");
           
-        ScrollTrigger.create({
-            trigger: "#hero-section",
-            start: "top top",
-            end: "+=50%",
-            pin: true,
-            pinSpacing: false,
-            animation: gsap.to("#hero-section", { opacity: 0, scale: 0.95, ease: "none" }),
-            scrub: true
-        });
     }
 
     function initScrollReveal() {
